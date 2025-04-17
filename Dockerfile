@@ -35,7 +35,7 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Install yt-dlp globally
-RUN pip3 install yt-dlp
+RUN pip3 install yt-dlp --break-system-packages
 
 COPY --from=builder /app/package.json /app/yarn.lock ./
 COPY --from=builder /app/apps/client/dist ./apps/client/dist
