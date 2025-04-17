@@ -64,8 +64,13 @@ export const videoRouter = router({
         }),
 
     status: protectedProcedure.query(() => {
+        const outputPath = path.resolve("downloads", "trimmed.mp4");
+        const exists = fs.existsSync(outputPath);
+
+        console.log("Video exists:", exists);
         return {
             isTrimming,
+            lastTrimmedVideoUrl: exists ? "/downloads/trimmed.mp4" : null,
         };
     }),
 });

@@ -284,9 +284,24 @@ export default function Home() {
               </CardHeader>
               <CardContent className="flex items-center justify-center">
                 {!isSubmitted || isWaitingForServer || trimVideo.isPending ? (
-                  <div className="flex aspect-video w-full items-center justify-center rounded-lg">
-                    <Youtube className="h-16 w-16 text-gray-300" />
-                  </div>
+                  <>
+                    {serverStatus.data?.lastTrimmedVideoUrl ? (
+                      <div className="w-full">
+                        <div className="aspect-video overflow-hidden rounded-lg">
+                          <iframe
+                            src={serverStatus.data.lastTrimmedVideoUrl}
+                            className="h-full w-full"
+                            allowFullScreen
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                          ></iframe>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="flex aspect-video w-full items-center justify-center rounded-lg">
+                        <Youtube className="h-16 w-16 text-gray-300" />
+                      </div>
+                    )}
+                  </>
                 ) : trimVideo.isError ? (
                   <div className="flex aspect-video w-full items-center justify-center rounded-lg bg-gray-100">
                     <p className="text-gray-500">Error loading video</p>
