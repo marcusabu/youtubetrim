@@ -21,44 +21,49 @@ export default function Home() {
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [useTimeFormat, setUseTimeFormat] = useState(false);
 
-  // Server status check
   const serverStatus = useQuery({
     ...trpc.video.status.queryOptions(),
     refetchInterval: 1000,
   });
 
-  // Video trimming mutation
   const trimVideo = useMutation(trpc.video.trim.mutationOptions());
 
-  // Convert seconds to MM:SS format
   const secondsToTimeFormat = (seconds: number): string => {
     if (isNaN(seconds)) return "";
-    const minutes = Math.floor(seconds / 60);
-    const remainingSeconds = Math.floor(seconds % 60);
-    return `${minutes}:${remainingSeconds.toString().padStart(2, "0")}`;
+    const hrs = Math.floor(seconds / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
+    const secs = Math.floor(seconds % 60);
+    if (hrs > 0) {
+      return `${hrs}:${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+    } else {
+      return `${mins}:${secs.toString().padStart(2, "0")}`;
+    }
   };
 
-  // Convert MM:SS format to seconds
   const timeFormatToSeconds = (timeFormat: string): number => {
     if (!timeFormat) return 0;
-    const [minutes, seconds] = timeFormat.split(":").map(Number);
-    return (minutes ?? 0) * 60 + (seconds ?? 0);
+    const parts = timeFormat.split(":").map(Number);
+    if (parts.length === 3) {
+      const [hours, minutes, seconds] = parts;
+      return (hours ?? 0) * 3600 + (minutes ?? 0) * 60 + (seconds ?? 0);
+    } else if (parts.length === 2) {
+      const [minutes, seconds] = parts;
+      return (minutes ?? 0) * 60 + (seconds ?? 0);
+    } else {
+      return 0;
+    }
   };
 
-  // Validate time format input (MM:SS)
   const isValidTimeFormat = (time: string): boolean => {
-    return /^\d+:[0-5]\d$/.test(time);
+    return /^(\d+:)?[0-5]?\d:[0-5]\d$/.test(time);
   };
 
-  // Check if the server is currently processing a video
   const isServerBusy = serverStatus.data?.isTrimming;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (isServerBusy) {
-      return; // Don't submit if server is busy
-    }
+    if (isServerBusy) return;
 
     setIsSubmitted(true);
 
@@ -99,23 +104,17 @@ export default function Home() {
         timeFormatToSeconds(endTime) > timeFormatToSeconds(startTime)
       : Number.parseFloat(startTime) >= 0 && Number.parseFloat(endTime) > Number.parseFloat(startTime));
 
-  // Handle format toggle
   const handleFormatToggle = (checked: boolean) => {
     setUseTimeFormat(checked);
-
-    // Convert existing values
     if (checked) {
-      // Convert from seconds to time format
       if (startTime) setStartTime(secondsToTimeFormat(Number.parseFloat(startTime)));
       if (endTime) setEndTime(secondsToTimeFormat(Number.parseFloat(endTime)));
     } else {
-      // Convert from time format to seconds
       if (startTime) setStartTime(timeFormatToSeconds(startTime).toString());
       if (endTime) setEndTime(timeFormatToSeconds(endTime).toString());
     }
   };
 
-  // Determine if we're in a waiting state (server is busy but not with our request)
   const isWaitingForServer = isServerBusy && !trimVideo.isPending && isSubmitted;
 
   return (
@@ -127,7 +126,6 @@ export default function Home() {
         </div>
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          {/* Form Column */}
           <div>
             <Card className="h-full">
               <CardHeader>
@@ -159,43 +157,45 @@ export default function Home() {
 
                     <div className="space-y-4">
                       <div className="flex items-center justify-between">
-                        <Label htmlFor="time-format">Use time format (MM:SS)</Label>
+                        <Label htmlFor="time-format">Use time format (MM:SS or HH:MM:SS)</Label>
                         <Switch id="time-format" checked={useTimeFormat} onCheckedChange={handleFormatToggle} />
                       </div>
 
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
                           <Label htmlFor="start-time">
-                            {useTimeFormat ? "Start Time (MM:SS)" : "Start Time (seconds)"}
+                            {useTimeFormat ? "Start Time (MM:SS or HH:MM:SS)" : "Start Time (seconds)"}
                           </Label>
                           <Input
                             id="start-time"
                             type={useTimeFormat ? "text" : "number"}
                             min={useTimeFormat ? undefined : "0"}
                             step={useTimeFormat ? undefined : "0.1"}
-                            placeholder={useTimeFormat ? "0:00" : "0"}
+                            placeholder={useTimeFormat ? "1:30 or 0:01:30" : "0"}
                             value={startTime}
                             onChange={(e) => setStartTime(e.target.value)}
                             required
                           />
                           {useTimeFormat && startTime && !isValidTimeFormat(startTime) && (
-                            <p className="text-sm text-red-500">Please use MM:SS format (e.g., 1:30)</p>
+                            <p className="text-sm text-red-500">Invalid time format (use MM:SS or HH:MM:SS)</p>
                           )}
                         </div>
                         <div className="space-y-2">
-                          <Label htmlFor="end-time">{useTimeFormat ? "End Time (MM:SS)" : "End Time (seconds)"}</Label>
+                          <Label htmlFor="end-time">
+                            {useTimeFormat ? "End Time (MM:SS or HH:MM:SS)" : "End Time (seconds)"}
+                          </Label>
                           <Input
                             id="end-time"
                             type={useTimeFormat ? "text" : "number"}
                             min={useTimeFormat ? undefined : "0"}
                             step={useTimeFormat ? undefined : "0.1"}
-                            placeholder={useTimeFormat ? "1:00" : "60"}
+                            placeholder={useTimeFormat ? "2:45 or 0:02:45" : "60"}
                             value={endTime}
                             onChange={(e) => setEndTime(e.target.value)}
                             required
                           />
                           {useTimeFormat && endTime && !isValidTimeFormat(endTime) && (
-                            <p className="text-sm text-red-500">Please use MM:SS format (e.g., 1:30)</p>
+                            <p className="text-sm text-red-500">Invalid time format (use MM:SS or HH:MM:SS)</p>
                           )}
                         </div>
                       </div>
@@ -273,7 +273,6 @@ export default function Home() {
             </Card>
           </div>
 
-          {/* Video Column */}
           <div>
             <Card className="h-full">
               <CardHeader>
@@ -327,8 +326,6 @@ export default function Home() {
     </main>
   );
 }
-
-// Server status indicator component
 
 function ServerStatusIndicator({ isLoading, isBusy }: { isLoading: boolean; isBusy: boolean | undefined }) {
   if (isLoading) {
