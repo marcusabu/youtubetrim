@@ -1,0 +1,31 @@
+{
+  "private": true,
+  "workspaces": [
+    "./apps/client",
+    "./apps/server"
+  ],
+  "scripts": {
+    "dev": "concurrently --kill-others-on-fail --prefix \"[{name}]\" --names \"SERVER,CLIENT\" --prefix-colors \"blue,magenta\" \"yarn server\" \"yarn client\"",
+    "client": "yarn workspace client start",
+    "server": "yarn workspace server start",
+    "build:client": "yarn workspace client build",
+    "start:prod": "yarn workspace server start:prod",
+    "deploy": "git stash && git pull && docker compose up --build -d --remove-orphans",
+    "typecheck": "yarn tsc -p apps/client && yarn tsc -p apps/server"
+  },
+  "dependencies": {
+    "concurrently": "^9.1.2",
+    "morgan": "^1.10.0",
+    "zod": "^3.24.3",
+    "date-fns": "^4.1.0",
+    "sort-by": "^1.2.0",
+    "@trpc/client": "^11.1.0",
+    "@trpc/react-query": "^11.1.0",
+    "@trpc/server": "^11.1.0",
+    "@tanstack/react-query": "^5.74.4"
+  },
+  "devDependencies": {
+    "prettier-plugin-tailwindcss": "^0.6.11",
+    "typescript": "^5.8.3"
+  }
+}

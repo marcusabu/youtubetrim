@@ -1,0 +1,24 @@
+name: ci
+
+on:
+  push:
+    branches:
+      - "main"
+
+jobs:
+  Deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy
+        uses: appleboy/ssh-action@v0.1.7
+        with:
+          host: marcusabukari.nl
+          username: marcusabukari
+          password: ${{ secrets.SSH_PASSWORD }}
+          port: 22
+          script: |
+            cd youtubetrim
+            git stash
+            git fetch
+            git reset origin/main --hard
+            docker compose up -d --build --remove-orphans
