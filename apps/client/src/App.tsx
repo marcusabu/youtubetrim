@@ -1,5 +1,3 @@
-"use client";
-
 import type React from "react";
 
 import { useState } from "react";
@@ -11,7 +9,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Label } from "@/components/ui/label";
 import { Loader2, Youtube, AlertCircle, Check } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 
 export default function Home() {
@@ -19,7 +16,6 @@ export default function Home() {
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
   const [isSubmitted, setIsSubmitted] = useState(false);
-  const [useTimeFormat, setUseTimeFormat] = useState(false);
 
   const serverStatus = useQuery({
     ...trpc.video.status.queryOptions(),
@@ -27,18 +23,6 @@ export default function Home() {
   });
 
   const trimVideo = useMutation(trpc.video.trim.mutationOptions());
-
-  const secondsToTimeFormat = (seconds: number): string => {
-    if (isNaN(seconds)) return "";
-    const hrs = Math.floor(seconds / 3600);
-    const mins = Math.floor((seconds % 3600) / 60);
-    const secs = Math.floor(seconds % 60);
-    if (hrs > 0) {
-      return `${hrs}:${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
-    } else {
-      return `${mins}:${secs.toString().padStart(2, "0")}`;
-    }
-  };
 
   const timeFormatToSeconds = (timeFormat: string): number => {
     if (!timeFormat) return 0;
@@ -67,8 +51,8 @@ export default function Home() {
 
     setIsSubmitted(true);
 
-    const startSeconds = useTimeFormat ? timeFormatToSeconds(startTime) : Number.parseFloat(startTime);
-    const endSeconds = useTimeFormat ? timeFormatToSeconds(endTime) : Number.parseFloat(endTime);
+    const startSeconds = timeFormatToSeconds(startTime);
+    const endSeconds = timeFormatToSeconds(endTime);
 
     try {
       await trimVideo.mutateAsync({
@@ -98,22 +82,9 @@ export default function Home() {
     startTime &&
     endTime &&
     isValidYoutubeUrl(youtubeUrl) &&
-    (useTimeFormat
-      ? isValidTimeFormat(startTime) &&
-        isValidTimeFormat(endTime) &&
-        timeFormatToSeconds(endTime) > timeFormatToSeconds(startTime)
-      : Number.parseFloat(startTime) >= 0 && Number.parseFloat(endTime) > Number.parseFloat(startTime));
-
-  const handleFormatToggle = (checked: boolean) => {
-    setUseTimeFormat(checked);
-    if (checked) {
-      if (startTime) setStartTime(secondsToTimeFormat(Number.parseFloat(startTime)));
-      if (endTime) setEndTime(secondsToTimeFormat(Number.parseFloat(endTime)));
-    } else {
-      if (startTime) setStartTime(timeFormatToSeconds(startTime).toString());
-      if (endTime) setEndTime(timeFormatToSeconds(endTime).toString());
-    }
-  };
+    isValidTimeFormat(startTime) &&
+    isValidTimeFormat(endTime) &&
+    timeFormatToSeconds(endTime) > timeFormatToSeconds(startTime);
 
   const isWaitingForServer = isServerBusy && !trimVideo.isPending && isSubmitted;
 
@@ -156,45 +127,36 @@ export default function Home() {
                     </div>
 
                     <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <Label htmlFor="time-format">Use time format (MM:SS or HH:MM:SS)</Label>
-                        <Switch id="time-format" checked={useTimeFormat} onCheckedChange={handleFormatToggle} />
-                      </div>
-
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                          <Label htmlFor="start-time">
-                            {useTimeFormat ? "Start Time (MM:SS or HH:MM:SS)" : "Start Time (seconds)"}
-                          </Label>
+                          <Label htmlFor="start-time">Start Time (MM:SS or HH:MM:SS)</Label>
                           <Input
                             id="start-time"
-                            type={useTimeFormat ? "text" : "number"}
-                            min={useTimeFormat ? undefined : "0"}
-                            step={useTimeFormat ? undefined : "0.1"}
-                            placeholder={useTimeFormat ? "1:30 or 0:01:30" : "0"}
+                            type={"text"}
+                            min={undefined}
+                            step={undefined}
+                            placeholder={"1:30 or 0:01:30"}
                             value={startTime}
                             onChange={(e) => setStartTime(e.target.value)}
                             required
                           />
-                          {useTimeFormat && startTime && !isValidTimeFormat(startTime) && (
+                          {startTime && !isValidTimeFormat(startTime) && (
                             <p className="text-sm text-red-500">Invalid time format (use MM:SS or HH:MM:SS)</p>
                           )}
                         </div>
                         <div className="space-y-2">
-                          <Label htmlFor="end-time">
-                            {useTimeFormat ? "End Time (MM:SS or HH:MM:SS)" : "End Time (seconds)"}
-                          </Label>
+                          <Label htmlFor="end-time">End Time (MM:SS or HH:MM:SS)</Label>
                           <Input
                             id="end-time"
-                            type={useTimeFormat ? "text" : "number"}
-                            min={useTimeFormat ? undefined : "0"}
-                            step={useTimeFormat ? undefined : "0.1"}
-                            placeholder={useTimeFormat ? "2:45 or 0:02:45" : "60"}
+                            type={"text"}
+                            min={undefined}
+                            step={undefined}
+                            placeholder={"2:45 or 0:02:45"}
                             value={endTime}
                             onChange={(e) => setEndTime(e.target.value)}
                             required
                           />
-                          {useTimeFormat && endTime && !isValidTimeFormat(endTime) && (
+                          {endTime && !isValidTimeFormat(endTime) && (
                             <p className="text-sm text-red-500">Invalid time format (use MM:SS or HH:MM:SS)</p>
                           )}
                         </div>
@@ -202,15 +164,11 @@ export default function Home() {
 
                       {startTime &&
                         endTime &&
-                        (useTimeFormat
-                          ? isValidTimeFormat(startTime) &&
-                            isValidTimeFormat(endTime) &&
-                            timeFormatToSeconds(endTime) <= timeFormatToSeconds(startTime) && (
-                              <p className="text-sm text-red-500">End time must be greater than start time</p>
-                            )
-                          : Number.parseFloat(endTime) <= Number.parseFloat(startTime) && (
-                              <p className="text-sm text-red-500">End time must be greater than start time</p>
-                            ))}
+                        isValidTimeFormat(startTime) &&
+                        isValidTimeFormat(endTime) &&
+                        timeFormatToSeconds(endTime) <= timeFormatToSeconds(startTime) && (
+                          <p className="text-sm text-red-500">End time must be greater than start time</p>
+                        )}
                     </div>
 
                     {isServerBusy && (
