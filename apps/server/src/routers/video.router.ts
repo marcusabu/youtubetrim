@@ -36,27 +36,30 @@ export const videoRouter = router({
                 const tempPath = path.join(outputDir, "source.mp4");
                 const outputPath = path.join(outputDir, "trimmed.mp4");
 
-                // Delete old file if exists
                 if (fs.existsSync(outputPath)) {
                     fs.unlinkSync(outputPath);
                 }
 
-                // Download full video
                 const downloadCmd = `yt-dlp -f bestvideo+bestaudio --merge-output-format mp4 "${youtubeUrl}" -o "${tempPath}"`;
-                await execAsync(downloadCmd);
+                console.log(`Executing command: ${downloadCmd}`);
+                const { stdout: downloadOut, stderr: downloadErr } = await execAsync(downloadCmd);
+                console.log("yt-dlp stdout:", downloadOut);
+                console.log("yt-dlp stderr:", downloadErr);
 
-                // Trim the result
                 const ffmpegCmd = `ffmpeg -y -i "${tempPath}" -ss ${startTime} -t ${duration} -c copy "${outputPath}"`;
-                await execAsync(ffmpegCmd);
+                console.log(`Executing command: ${ffmpegCmd}`);
+                const { stdout: ffmpegOut, stderr: ffmpegErr } = await execAsync(ffmpegCmd);
+                console.log("ffmpeg stdout:", ffmpegOut);
+                console.log("ffmpeg stderr:", ffmpegErr);
 
-                // Clean up
                 fs.unlinkSync(tempPath);
 
                 return {
                     title: "Trimmed Video",
-                    videoUrl: `/downloads/${outputFile}`, // embed this in a <video />
+                    videoUrl: `/downloads/${outputFile}`,
                 };
             } catch (error: any) {
+                console.error("Error during video trimming:", error);
                 throw new Error(`Failed to trim video: ${error.message}`);
             } finally {
                 isTrimming = false;
