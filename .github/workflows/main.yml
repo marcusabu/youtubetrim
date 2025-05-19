@@ -17,7 +17,12 @@ jobs:
           password: ${{ secrets.SSH_PASSWORD }}
           port: 22
           script: |
+            security -v unlock-keychain -p "${{ secrets.SSH_PASSWORD }}" ~/Library/Keychains/login.keychain-db
+
+            export PATH=$PATH:/usr/bin:/usr/local/bin
+            
             cd Projects/youtubetrim
+            
             git stash
             git fetch
             git reset origin/main --hard
