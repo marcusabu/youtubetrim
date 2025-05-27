@@ -19,11 +19,18 @@ jobs:
           script: |
             security -v unlock-keychain -p "${{ secrets.SSH_PASSWORD }}" ~/Library/Keychains/login.keychain-db
 
-            export PATH=$PATH:/usr/bin:/usr/local/bin
-            
+            export PATH=$PATH:/usr/bin:/usr/local/bin:/opt/homebrew/bin:/usr/local/opt/helm/bin
+
             cd Projects/youtubetrim
-            
+
             git stash
             git fetch
             git reset origin/main --hard
-            docker compose up -d --build --remove-orphans
+
+            # Build and tag the Docker image
+            docker build -t youtubetrim:latest .
+            docker tag youtubetrim:latest localhost:3010/youtubetrim:latest                                      
+            docker push localhost:3010/youtubetrim:latest
+
+            cd ../k8s
+            helm upgrade --install homelab .
