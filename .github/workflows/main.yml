@@ -1,36 +1,15 @@
-name: ci
+name: Deploy
 
 on:
   push:
     branches:
-      - "main"
+      - main
 
 jobs:
   Deploy:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Deploy
-        uses: appleboy/ssh-action@v0.1.7
-        with:
-          host: marcusabukari.nl
-          username: marcusabukari
-          password: ${{ secrets.SSH_PASSWORD }}
-          port: 22
-          script: |
-            security -v unlock-keychain -p "${{ secrets.SSH_PASSWORD }}" ~/Library/Keychains/login.keychain-db
-
-            export PATH=$PATH:/usr/bin:/usr/local/bin:/opt/homebrew/bin:/usr/local/opt/helm/bin
-
-            cd Projects/youtubetrim
-
-            git stash
-            git fetch
-            git reset origin/main --hard
-
-            # Build and tag the Docker image
-            docker build -t youtubetrim:latest .
-            docker tag youtubetrim:latest localhost:3010/youtubetrim:latest                                      
-            docker push localhost:3010/youtubetrim:latest
-
-            cd ../k8s
-            helm upgrade --install homelab .
+    uses: marcusabu/workflows/.github/workflows/deploy.yml@main
+    with:
+      app_name: ${{ github.event.repository.name }}
+    secrets:
+      ssh_password: ${{ secrets.SSH_PASSWORD }}
+      slack_webhook_url: ${{ secrets.SLACK_WEBHOOK_URL }}
