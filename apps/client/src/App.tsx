@@ -1,6 +1,6 @@
 import type React from "react";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { trpc } from "@/utils/trpc";
 import { Button } from "@/components/ui/button";
@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Loader2, Youtube, AlertCircle, Check } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
+import { toast } from "sonner";
 
 export default function Home() {
   const [youtubeUrl, setYoutubeUrl] = useState("");
@@ -23,6 +24,12 @@ export default function Home() {
   });
 
   const trimVideo = useMutation(trpc.video.trim.mutationOptions());
+
+  useEffect(() => {
+    if (trimVideo.isSuccess) {
+      toast.success(`Starting to trim video ${trimVideo.data.videoTitle}`);
+    }
+  }, [trimVideo.isSuccess]);
 
   const timeFormatToSeconds = (timeFormat: string): number => {
     if (!timeFormat) return 0;
@@ -211,7 +218,7 @@ export default function Home() {
                       </Alert>
                     )}
 
-                    {trimVideo.isSuccess && trimVideo.data && (
+                    {trimVideo.isSuccess && serverStatus.data?.videoUrl && (
                       <div className="space-y-4">
                         <div className="flex max-w-md items-center gap-3 rounded-lg bg-gray-800 p-4 text-white">
                           <div className="flex-shrink-0 rounded-full bg-green-500 p-1">
@@ -242,11 +249,11 @@ export default function Home() {
               <CardContent className="flex items-center justify-center">
                 {!isSubmitted || isWaitingForServer || trimVideo.isPending ? (
                   <>
-                    {serverStatus.data?.lastTrimmedVideoUrl ? (
+                    {serverStatus.data?.videoUrl ? (
                       <div className="w-full">
                         <div className="aspect-video overflow-hidden rounded-lg">
                           <iframe
-                            src={serverStatus.data.lastTrimmedVideoUrl}
+                            src={serverStatus.data.videoUrl}
                             className="h-full w-full"
                             allowFullScreen
                             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
@@ -263,13 +270,13 @@ export default function Home() {
                   <div className="flex aspect-video w-full items-center justify-center rounded-lg bg-gray-100">
                     <p className="text-gray-500">Error loading video</p>
                   </div>
-                ) : trimVideo.data ? (
+                ) : serverStatus.data?.videoUrl ? (
                   <div className="w-full">
                     <div className="aspect-video overflow-hidden rounded-lg">
                       <iframe
-                        src={trimVideo.data.videoUrl}
+                        src={serverStatus.data.videoUrl}
                         className="h-full w-full"
-                        title={trimVideo.data.title}
+                        title={serverStatus.data.videoUrl}
                         allowFullScreen
                         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                       ></iframe>

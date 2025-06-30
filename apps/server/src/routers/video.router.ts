@@ -23,56 +23,87 @@ export const videoRouter = router({
                 throw new Error("A trimming operation is already in progress.");
             }
 
-            isTrimming = true;
-
             const { youtubeUrl, startTime, endTime } = input;
-            const duration = endTime - startTime;
             const outputDir = path.resolve("downloads");
-            const outputFile = "trimmed.mp4";
 
             try {
                 fs.mkdirSync(outputDir, { recursive: true });
 
-                const tempPath = path.join(outputDir, "source.mp4");
-                const outputPath = path.join(outputDir, "trimmed.mp4");
+                // Get video title first
+                const titleCmd = `yt-dlp --get-title "${youtubeUrl}"`;
+                console.log(`Executing command: ${titleCmd}`);
+                const { stdout: titleOutput } = await execAsync(titleCmd);
+                const videoTitle = titleOutput.trim().replace(/[^a-zA-Z0-9\s-]/g, '').replace(/\s+/g, '_');
 
-                if (fs.existsSync(outputPath)) {
-                    fs.unlinkSync(outputPath);
-                }
+                // Set global state
+                isTrimming = true;
 
-                const downloadCmd = `yt-dlp -f bestvideo+bestaudio --merge-output-format mp4 "${youtubeUrl}" -o "${tempPath}"`;
-                console.log(`Executing command: ${downloadCmd}`);
-                const { stdout: downloadOut, stderr: downloadErr } = await execAsync(downloadCmd);
-                console.log("yt-dlp stdout:", downloadOut);
-                console.log("yt-dlp stderr:", downloadErr);
+                // Start background trimming process
+                (async () => {
+                    try {
+                        // Delete old MP4 files in output directory (ignore tmp folder)
+                        const files = fs.readdirSync(outputDir);
+                        for (const file of files) {
+                            if (file.endsWith('.mp4') && file !== 'tmp') {
+                                const filePath = path.join(outputDir, file);
+                                if (fs.statSync(filePath).isFile()) {
+                                    fs.unlinkSync(filePath);
+                                    console.log(`Deleted old file: ${file}`);
+                                }
+                            }
+                        }
 
-                const ffmpegCmd = `ffmpeg -y -i "${tempPath}" -ss ${startTime} -t ${duration} -c copy "${outputPath}"`;
-                console.log(`Executing command: ${ffmpegCmd}`);
-                const { stdout: ffmpegOut, stderr: ffmpegErr } = await execAsync(ffmpegCmd);
-                console.log("ffmpeg stdout:", ffmpegOut);
-                console.log("ffmpeg stderr:", ffmpegErr);
+                        const tempPath = path.join(outputDir, "tmp", "source.mp4");
+                        const outputFile = `${videoTitle}.mp4`;
+                        const outputPath = path.join(outputDir, outputFile);
 
-                fs.unlinkSync(tempPath);
+                        const downloadCmd = `yt-dlp -f bestvideo+bestaudio --merge-output-format mp4 "${youtubeUrl}" -o "${tempPath}"`;
+                        console.log(`Executing command: ${downloadCmd}`);
+                        const { stdout: downloadOut, stderr: downloadErr } = await execAsync(downloadCmd);
+                        console.log("yt-dlp stdout:", downloadOut);
+                        console.log("yt-dlp stderr:", downloadErr);
+
+                        const duration = endTime - startTime;
+                        const ffmpegCmd = `ffmpeg -y -i "${tempPath}" -ss ${startTime} -t ${duration} -c copy "${outputPath}"`;
+                        console.log(`Executing command: ${ffmpegCmd}`);
+                        const { stdout: ffmpegOut, stderr: ffmpegErr } = await execAsync(ffmpegCmd);
+                        console.log("ffmpeg stdout:", ffmpegOut);
+                        console.log("ffmpeg stderr:", ffmpegErr);
+
+                        fs.unlinkSync(tempPath);
+                        console.log(`Background trimming completed for: ${videoTitle}`);
+                    } catch (error: any) {
+                        console.error("Error during background video trimming:", error);
+                    } finally {
+                        isTrimming = false;
+                    }
+                })();
 
                 return {
-                    title: "Trimmed Video",
-                    videoUrl: `/downloads/${outputFile}`,
+                    videoTitle,
                 };
             } catch (error: any) {
-                console.error("Error during video trimming:", error);
-                throw new Error(`Failed to trim video: ${error.message}`);
-            } finally {
+                console.error("Error starting video trimming:", error);
                 isTrimming = false;
+                throw new Error(`Failed to start video trimming: ${error.message}`);
             }
         }),
 
     status: protectedProcedure.query(() => {
-        const outputPath = path.resolve("downloads", "trimmed.mp4");
-        const exists = fs.existsSync(outputPath);
+        const outputDir = path.resolve("downloads");
+        let videoUrl = null;
+
+        if (fs.existsSync(outputDir)) {
+            const files = fs.readdirSync(outputDir);
+            const mp4Files = files.filter(file => file.endsWith('.mp4') && file !== 'tmp');
+            if (mp4Files.length > 0) {
+                videoUrl = `/downloads/${mp4Files[0]}`;
+            }
+        }
 
         return {
             isTrimming,
-            lastTrimmedVideoUrl: exists ? "/downloads/trimmed.mp4" : null,
+            videoUrl,
         };
     }),
 });
